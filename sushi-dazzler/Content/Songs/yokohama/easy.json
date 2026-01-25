@@ -1,0 +1,18 @@
+{
+  "title": "Yokohama Nights",
+  "artist": "dosii",
+  "bpm": 120,
+  "audioFile": "yokohama.ogg",
+  "offset": 0.0,
+  "notes": [
+    { "beat": 1.0, "type": "Tap" },
+    { "beat": 2.0, "type": "Tap" },
+    { "beat": 3.0, "type": "Tap" },
+    { "beat": 4.0, "type": "Tap" },
+    { "beat": 6.0, "type": "Tap" },
+    { "beat": 7.0, "type": "Tap" },
+    { "beat": 8.0, "type": "Hold", "duration": 2.0 },
+    { "beat": 10.0, "type": "Tap" },
+    { "beat": 12.0, "type": "Tap" }
+  ]
+}

@@ -8,7 +8,7 @@
         "name": "C#: sushi_dazzler Debug",
         "type": "dotnet",
         "request": "launch",
-        "projectPath": "${workspaceFolder}/sushi_dazzler.csproj"
+        "projectPath": "${workspaceFolder}/sushi-dazzler.csproj"
       }
     ],
   }
