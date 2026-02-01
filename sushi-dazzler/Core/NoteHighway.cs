@@ -77,8 +77,12 @@ public class NoteHighway
         float lookBehind = 0.5f; // Show notes slightly past the hit zone
 
         return _song.Notes.Where(n =>
-            n.Beat >= currentBeat - lookBehind &&
-            n.Beat <= currentBeat + LookAheadBeats);
+        {
+            // For hold notes, consider the end of the hold for visibility
+            float noteEndBeat = n.Type == NoteType.Hold ? n.Beat + n.Duration : n.Beat;
+
+            return noteEndBeat >= currentBeat - lookBehind && n.Beat <= currentBeat + LookAheadBeats;
+        });
     }
 
     public int GetNoteX(Note note)
@@ -158,29 +162,41 @@ public class NoteHighway
     private void DrawNotes(SpriteBatch spriteBatch, Texture2D pixel)
     {
         int noteY = GetNoteY();
+        float pixelsPerBeat = (_screenWidth - HitZoneX - 50) / LookAheadBeats;
 
         foreach (var note in GetVisibleNotes())
         {
             int noteX = GetNoteX(note);
-
-            // Skip notes that are too far off screen
-            if (noteX < -NoteSize || noteX > _screenWidth + NoteSize) continue;
-
             Color noteColor = GetNoteColor(note.Type);
-
-            // Dim notes that have passed the hit zone
-            if (noteX < HitZoneX - 20)
-            {
-                noteColor = new Color((byte)(noteColor.R / 3), (byte)(noteColor.G / 3), (byte)(noteColor.B / 3), noteColor.A);
-            }
 
             switch (note.Type)
             {
                 case NoteType.Tap:
+                    // Skip tap notes that are too far off screen
+                    if (noteX < -NoteSize || noteX > _screenWidth + NoteSize) continue;
+
+                    // Dim notes that have passed the hit zone
+                    if (noteX < HitZoneX - 20)
+                    {
+                        noteColor = new Color((byte)(noteColor.R / 3), (byte)(noteColor.G / 3), (byte)(noteColor.B / 3), noteColor.A);
+                    }
                     DrawTapNote(spriteBatch, pixel, noteX, noteY, noteColor);
                     break;
+
                 case NoteType.Hold:
-                    DrawHoldNote(spriteBatch, pixel, noteX, noteY, note.Duration, noteColor);
+                    // For hold notes, calculate the end position
+                    int holdWidth = Math.Max(NoteSize, (int)(note.Duration * pixelsPerBeat));
+                    int noteEndX = noteX + holdWidth;
+
+                    // Skip if entirely off screen
+                    if (noteEndX < 0 || noteX > _screenWidth + NoteSize) continue;
+
+                    // Dim if the end has passed the hit zone
+                    if (noteEndX < HitZoneX - 20)
+                    {
+                        noteColor = new Color((byte)(noteColor.R / 3), (byte)(noteColor.G / 3), (byte)(noteColor.B / 3), noteColor.A);
+                    }
+                    DrawHoldNote(spriteBatch, pixel, noteX, noteY, note.Duration, noteColor, pixelsPerBeat);
                     break;
             }
         }
@@ -194,24 +210,42 @@ public class NoteHighway
             color);
     }
 
-    private void DrawHoldNote(SpriteBatch spriteBatch, Texture2D pixel, int x, int y, float duration, Color color)
+    private void DrawHoldNote(SpriteBatch spriteBatch, Texture2D pixel, int x, int y, float duration, Color color, float pixelsPerBeat)
     {
-        // Calculate the width based on duration
-        float pixelsPerBeat = (_screenWidth - HitZoneX - 50) / LookAheadBeats;
         int holdWidth = Math.Max(NoteSize, (int)(duration * pixelsPerBeat));
-
-        // Draw the hold bar
         int barHeight = NoteSize / 2;
+
+        // Calculate the actual drawing bounds, clipping to screen
+        int drawStartX = x - NoteSize / 2;
+        int drawEndX = drawStartX + holdWidth;
+
+        // Clip to left edge of screen (or just past hit zone)
+        int clipLeft = 0;
+        if (drawStartX < clipLeft)
+        {
+            drawStartX = clipLeft;
+        }
+
+        // Only draw if there's something visible
+        int clippedWidth = drawEndX - drawStartX;
+        if (clippedWidth <= 0) return;
+
+        // Draw the hold bar (clipped)
         spriteBatch.Draw(pixel,
-            new Rectangle(x - NoteSize / 2, y + NoteSize / 4, holdWidth, barHeight),
+            new Rectangle(drawStartX, y + NoteSize / 4, clippedWidth, barHeight),
             color);
 
-        // Draw caps at start and end
+        // Draw start cap only if start is visible
+        if (x - NoteSize / 2 >= clipLeft)
+        {
+            spriteBatch.Draw(pixel,
+                new Rectangle(x - NoteSize / 2, y, 4, NoteSize),
+                color);
+        }
+
+        // Draw end cap
         spriteBatch.Draw(pixel,
-            new Rectangle(x - NoteSize / 2, y, 4, NoteSize),
-            color);
-        spriteBatch.Draw(pixel,
-            new Rectangle(x - NoteSize / 2 + holdWidth - 4, y, 4, NoteSize),
+            new Rectangle(drawEndX - 4, y, 4, NoteSize),
             color);
     }
 
@@ -245,7 +279,7 @@ public class NoteHighway
         spriteBatch.Draw(pixel, new Rectangle(0, y, _screenWidth, ControlsHintHeight), new Color(20, 20, 30));
 
         // Controls text
-        string controls = "[Space = Tap]  [H = Hold]  [Enter = Start]  [Esc = Quit]";
+        string controls = "[Space = Tap]  [H = Hold]  [Enter = Start]  [R = Restart]  [Esc = Quit]";
         Vector2 controlsSize = font.MeasureString(controls);
         float controlsX = (_screenWidth - controlsSize.X) / 2;
 

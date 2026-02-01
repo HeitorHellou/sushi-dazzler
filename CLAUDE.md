@@ -111,6 +111,69 @@ Bridges Conductor and Song. Tracks which notes are active and handles hit detect
 
 Location: `Core/NoteTracker.cs`
 
+### Audio Playback
+Audio files must go through the MGCB content pipeline to be playable in MonoGame DesktopGL.
+
+#### Content Pipeline Setup
+Audio files are registered in `Content/Content.mgcb`:
+
+```
+#begin Songs/yokohama/yokohama.mp3
+/importer:Mp3Importer
+/processor:SongProcessor
+/build:Songs/yokohama/yokohama.mp3
+```
+
+The `.csproj` also copies raw MP3 files for backup, but playback uses the processed content.
+
+#### Loading Audio
+```csharp
+using Microsoft.Xna.Framework.Media;
+
+// Load through content pipeline (no file extension)
+string audioAssetPath = "Songs/yokohama/" + Path.GetFileNameWithoutExtension(_song.AudioFile);
+Microsoft.Xna.Framework.Media.Song _musicTrack = Content.Load<Microsoft.Xna.Framework.Media.Song>(audioAssetPath);
+```
+
+Note: Use fully qualified `Microsoft.Xna.Framework.Media.Song` to avoid conflict with `SushiDazzler.Core.Song`.
+
+#### Playing Audio
+```csharp
+// Start playback
+MediaPlayer.Play(_musicTrack);
+MediaPlayer.IsRepeating = false;
+
+// Stop playback
+MediaPlayer.Stop();
+```
+
+#### Timing Approach: Conductor as Source of Truth
+- The Conductor advances time using `GameTime.ElapsedGameTime` (frame-based timing)
+- Audio starts simultaneously when `Conductor.Start()` is called
+- Both run independently but start at the same moment
+- For short songs, drift is negligible; for longer songs, hybrid sync can be added later
+
+```
+┌─────────────────────────────────────────────────────┐
+│                  AUDIO SYNC MODEL                   │
+├─────────────────────────────────────────────────────┤
+│  Enter Key Pressed                                  │
+│       │                                             │
+│       ├──→ Conductor.Start(BPM, Offset)             │
+│       │         │                                   │
+│       │         └──→ Advances via GameTime          │
+│       │                                             │
+│       └──→ MediaPlayer.Play(_musicTrack)            │
+│                 │                                   │
+│                 └──→ Audio plays independently      │
+│                                                     │
+│  Both start at the same moment, gameplay follows    │
+│  the Conductor's beat count for note hit detection  │
+└─────────────────────────────────────────────────────┘
+```
+
+Location: Audio loading/playback in `Game1.cs`
+
 ### Understanding Beats and BPM
 
 #### What is a Beat?

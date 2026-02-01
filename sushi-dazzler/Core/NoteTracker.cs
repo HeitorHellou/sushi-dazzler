@@ -11,10 +11,16 @@ public class NoteTracker
 
     private int _nextNoteIndex;
 
+    // Hold note tracking
+    private Note? _currentHold;
+
     public float HitWindow { get; set; } = 0.2f; // ±0.2 beats
     public int HitCount { get; private set; }
     public int MissCount { get; private set; }
     public IReadOnlyCollection<Note> ActiveNotes => _activeNotes;
+
+    // Expose hold state for Game1 to query
+    public bool IsHolding => _currentHold != null;
 
     public NoteTracker(Song song, Conductor conductor)
     {
@@ -45,7 +51,8 @@ public class NoteTracker
         }
 
         // Check for missed notes (past the window)
-        var missedNotes = _activeNotes.Where(n => n.Beat < windowStart).ToList();
+        // Note: Don't mark the currently held note as missed
+        var missedNotes = _activeNotes.Where(n => n.Beat < windowStart && n != _currentHold).ToList();
         foreach (var note in missedNotes)
         {
             _activeNotes.Remove(note);
@@ -55,6 +62,10 @@ public class NoteTracker
 
     public bool TryHit(NoteType type)
     {
+        // TryHit only handles Tap notes now
+        if (type == NoteType.Hold)
+            return false;
+
         var note = _activeNotes.FirstOrDefault(n => n.Type == type);
         if (note == null)
             return false;
@@ -64,11 +75,52 @@ public class NoteTracker
         return true;
     }
 
+    public bool TryStartHold()
+    {
+        if (_currentHold != null)
+            return false; // Already holding something
+
+        var note = _activeNotes.FirstOrDefault(n => n.Type == NoteType.Hold);
+        if (note == null)
+            return false;
+
+        _currentHold = note;
+        _activeNotes.Remove(note); // Remove from active so it doesn't get marked as missed
+        return true;
+    }
+
+    public bool TryReleaseHold()
+    {
+        if (_currentHold == null)
+            return false;
+
+        float currentBeat = _conductor.CurrentBeat;
+        float holdEndBeat = _currentHold.Beat + _currentHold.Duration;
+
+        // Check if released within the hit window of the end beat (±HitWindow)
+        bool releasedOnTime = currentBeat >= (holdEndBeat - HitWindow) &&
+                              currentBeat <= (holdEndBeat + HitWindow);
+
+        if (releasedOnTime)
+        {
+            HitCount++;
+        }
+        else
+        {
+            // Released too early or too late
+            MissCount++;
+        }
+
+        _currentHold = null;
+        return releasedOnTime;
+    }
+
     public void Reset()
     {
         _nextNoteIndex = 0;
         _activeNotes.Clear();
         HitCount = 0;
         MissCount = 0;
+        _currentHold = null;
     }
 }

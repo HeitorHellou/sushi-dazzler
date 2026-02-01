@@ -1,7 +1,9 @@
 using System;
+using System.IO;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
+using Microsoft.Xna.Framework.Media;
 using SushiDazzler.Core;
 
 namespace sushi_dazzler;
@@ -12,12 +14,14 @@ public class Game1 : Game
     private SpriteBatch _spriteBatch;
 
     private Conductor _conductor;
-    private Song _song;
+    private SushiDazzler.Core.Song _song;
     private NoteTracker _noteTracker;
     private NoteHighway _noteHighway;
 
     private Texture2D _pixel;
     private SpriteFont _font;
+
+    private Microsoft.Xna.Framework.Media.Song _musicTrack;
 
     private KeyboardState _previousKeyboardState;
 
@@ -45,15 +49,14 @@ public class Game1 : Game
         _font = Content.Load<SpriteFont>("DefaultFont");
 
         _song = SongLoader.Load("Content/Songs/yokohama/easy.json");
+
+        // Load audio file through content pipeline
+        string audioAssetPath = "Songs/yokohama/" + Path.GetFileNameWithoutExtension(_song.AudioFile);
+        _musicTrack = Content.Load<Microsoft.Xna.Framework.Media.Song>(audioAssetPath);
+
         _conductor = new Conductor();
         _noteTracker = new NoteTracker(_song, _conductor);
-        _noteHighway = new NoteHighway(_song, _conductor, _noteTracker,
-            _graphics.PreferredBackBufferWidth, _graphics.PreferredBackBufferHeight);
-
-        Console.WriteLine($"Loaded: {_song.Title} by {_song.Artist}");
-        Console.WriteLine($"BPM: {_song.BPM}, Notes: {_song.Notes.Count}");
-        Console.WriteLine("Controls: Space=Tap, H=Hold");
-        Console.WriteLine("Press Enter to start...");
+        _noteHighway = new NoteHighway(_song, _conductor, _noteTracker, _graphics.PreferredBackBufferWidth, _graphics.PreferredBackBufferHeight);
     }
 
     protected override void Update(GameTime gameTime)
@@ -61,13 +64,30 @@ public class Game1 : Game
         var keyboardState = Keyboard.GetState();
 
         if (keyboardState.IsKeyDown(Keys.Escape))
+        {
+            MediaPlayer.Stop();
             Exit();
+        }
 
         // Start the song with Enter
         if (WasKeyPressed(Keys.Enter, keyboardState) && !_conductor.IsPlaying)
         {
             _conductor.Start(_song.BPM, _song.Offset);
+            MediaPlayer.Play(_musicTrack);
+            MediaPlayer.IsRepeating = false;
             Console.WriteLine("Started!");
+        }
+
+        // Restart the song with R
+        if (WasKeyPressed(Keys.R, keyboardState))
+        {
+            MediaPlayer.Stop();
+            _conductor.Stop();
+            _noteTracker.Reset();
+            _conductor.Start(_song.BPM, _song.Offset);
+            MediaPlayer.Play(_musicTrack);
+            MediaPlayer.IsRepeating = false;
+            Console.WriteLine("Restarted!");
         }
 
         // Update highway even when not playing (for flash timers)
@@ -78,18 +98,12 @@ public class Game1 : Game
             _conductor.Update(gameTime);
             _noteTracker.Update();
 
-            // Input handling
+            // Input handling - Tap notes
             if (WasKeyPressed(Keys.Space, keyboardState))
                 HandleHit(NoteType.Tap);
 
-            if (WasKeyPressed(Keys.H, keyboardState))
-                HandleHit(NoteType.Hold);
-
-            // Debug: show current beat every second (roughly every 60 frames)
-            if ((int)(_conductor.CurrentBeat * 4) != (int)((_conductor.CurrentBeat - (float)gameTime.ElapsedGameTime.TotalSeconds / _conductor.Crotchet) * 4))
-            {
-                Console.WriteLine($"Beat: {_conductor.CurrentBeat:F1} | Active: {_noteTracker.ActiveNotes.Count} | Hits: {_noteTracker.HitCount} Miss: {_noteTracker.MissCount}");
-            }
+            // Input handling - Hold notes
+            HandleHoldInput(keyboardState);
         }
 
         _previousKeyboardState = keyboardState;
@@ -105,11 +119,25 @@ public class Game1 : Game
     {
         bool success = _noteTracker.TryHit(type);
         _noteHighway.OnHit(success);
+    }
 
-        if (success)
-            Console.WriteLine($"HIT {type}!");
-        else
-            Console.WriteLine($"Miss... (no {type} note active)");
+    private void HandleHoldInput(KeyboardState keyboardState)
+    {
+        bool holdKeyDown = keyboardState.IsKeyDown(Keys.H);
+        bool holdKeyWasDown = _previousKeyboardState.IsKeyDown(Keys.H);
+
+        if (holdKeyDown && !holdKeyWasDown)
+        {
+            // Key just pressed - try to start a hold
+            bool success = _noteTracker.TryStartHold();
+            _noteHighway.OnHit(success);
+        }
+        else if (!holdKeyDown && holdKeyWasDown && _noteTracker.IsHolding)
+        {
+            // Key released - check if release timing is correct (within ±0.2 of end beat)
+            bool success = _noteTracker.TryReleaseHold();
+            _noteHighway.OnHit(success);
+        }
     }
 
     protected override void Draw(GameTime gameTime)
