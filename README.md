@@ -215,10 +215,3 @@ Os charts ficam em `Content/Songs/{bar}/{dificuldade}.json`
 - **IDE**: Visual Studio Code
 - **Content Pipeline**: MGCB (MonoGame Content Builder)
 
-## Próximos Passos
-
-- [ ] Integrar áudio real com o Conductor
-- [ ] Implementar sistema de pontuação
-- [ ] Criar mais charts
-- [ ] Adicionar animações do chef
-- [ ] Menu principal e seleção de músicas
