@@ -3,6 +3,15 @@ using System.Linq;
 
 namespace SushiDazzler.Core;
 
+public struct HitResult
+{
+    public bool Success;
+    public float TimingDifference; // Positive = late, negative = early
+
+    public static HitResult Miss => new() { Success = false, TimingDifference = 0 };
+    public static HitResult Hit(float timing) => new() { Success = true, TimingDifference = timing };
+}
+
 public class NoteTracker
 {
     private readonly List<Note> _notes;
@@ -13,14 +22,16 @@ public class NoteTracker
 
     // Hold note tracking
     private Note? _currentHold;
+    private float _holdStartTimingDiff; // Store timing diff from when hold started
 
-    public float HitWindow { get; set; } = 0.2f; // ±0.2 beats
+    public float HitWindow { get; set; } = 0.5f; // ±0.5 beats (matches ScoreTracker.GoodWindow)
     public int HitCount { get; private set; }
     public int MissCount { get; private set; }
     public IReadOnlyCollection<Note> ActiveNotes => _activeNotes;
 
     // Expose hold state for Game1 to query
     public bool IsHolding => _currentHold != null;
+    public char? CurrentHoldKey => _currentHold?.Key;
 
     public NoteTracker(Song song, Conductor conductor)
     {
@@ -29,7 +40,10 @@ public class NoteTracker
         _nextNoteIndex = 0;
     }
 
-    public void Update()
+    /// <summary>
+    /// Updates the note tracker and returns the number of notes that were missed this frame.
+    /// </summary>
+    public int Update()
     {
         float currentBeat = _conductor.CurrentBeat;
         float windowStart = currentBeat - HitWindow;
@@ -58,48 +72,48 @@ public class NoteTracker
             _activeNotes.Remove(note);
             MissCount++;
         }
+
+        return missedNotes.Count;
     }
 
-    public bool TryHit(NoteType type)
+    public HitResult TryHit(char key)
     {
-        // TryHit only handles Tap notes now
-        if (type == NoteType.Hold)
-            return false;
-
-        var note = _activeNotes.FirstOrDefault(n => n.Type == type);
+        var note = _activeNotes.FirstOrDefault(n => n.Type == NoteType.Tap && n.Key == key);
         if (note == null)
-            return false;
+            return HitResult.Miss;
 
+        float timingDiff = _conductor.CurrentBeat - note.Beat;
         _activeNotes.Remove(note);
         HitCount++;
-        return true;
+        return HitResult.Hit(timingDiff);
     }
 
-    public bool TryStartHold()
+    public HitResult TryStartHold(char key)
     {
         if (_currentHold != null)
-            return false; // Already holding something
+            return HitResult.Miss; // Already holding something
 
-        var note = _activeNotes.FirstOrDefault(n => n.Type == NoteType.Hold);
+        var note = _activeNotes.FirstOrDefault(n => n.Type == NoteType.Hold && n.Key == key);
         if (note == null)
-            return false;
+            return HitResult.Miss;
 
+        _holdStartTimingDiff = _conductor.CurrentBeat - note.Beat;
         _currentHold = note;
         _activeNotes.Remove(note); // Remove from active so it doesn't get marked as missed
-        return true;
+        return HitResult.Hit(_holdStartTimingDiff);
     }
 
-    public bool TryReleaseHold()
+    public HitResult TryReleaseHold()
     {
         if (_currentHold == null)
-            return false;
+            return HitResult.Miss;
 
         float currentBeat = _conductor.CurrentBeat;
         float holdEndBeat = _currentHold.Beat + _currentHold.Duration;
+        float timingDiff = currentBeat - holdEndBeat;
 
         // Check if released within the hit window of the end beat (±HitWindow)
-        bool releasedOnTime = currentBeat >= (holdEndBeat - HitWindow) &&
-                              currentBeat <= (holdEndBeat + HitWindow);
+        bool releasedOnTime = System.Math.Abs(timingDiff) <= HitWindow;
 
         if (releasedOnTime)
         {
@@ -112,7 +126,7 @@ public class NoteTracker
         }
 
         _currentHold = null;
-        return releasedOnTime;
+        return releasedOnTime ? HitResult.Hit(timingDiff) : HitResult.Miss;
     }
 
     public void Reset()
@@ -122,5 +136,6 @@ public class NoteTracker
         HitCount = 0;
         MissCount = 0;
         _currentHold = null;
+        _holdStartTimingDiff = 0;
     }
 }

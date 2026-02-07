@@ -5,13 +5,13 @@
   "audioFile": "yokohama.mp3",
   "offset": 0.0,
   "notes": [
-    { "beat": 5.0, "type": "Tap" },
-    { "beat": 6.0, "type": "Tap" },
-    { "beat": 7.0, "type": "Tap" },
-    { "beat": 8.0, "type": "Tap" },
-    { "beat": 9.0, "type": "Tap" },
-    { "beat": 10.0, "type": "Tap" },
-    { "beat": 11.0, "type": "Tap" },
-    { "beat": 12.0, "type": "Tap" }
+    { "beat": 5.0, "type": "Tap", "key": "A" },
+    { "beat": 6.0, "type": "Tap", "key": "S" },
+    { "beat": 7.0, "type": "Tap", "key": "D" },
+    { "beat": 8.0, "type": "Tap", "key": "F" },
+    { "beat": 9.0, "type": "Tap", "key": "J" },
+    { "beat": 10.0, "type": "Tap", "key": "K" },
+    { "beat": 11.0, "type": "Tap", "key": "L" },
+    { "beat": 12.0, "type": "Tap", "key": "A" }
   ]
 }

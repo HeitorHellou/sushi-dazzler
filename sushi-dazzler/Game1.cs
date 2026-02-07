@@ -17,6 +17,7 @@ public class Game1 : Game
     private SushiDazzler.Core.Song _song;
     private NoteTracker _noteTracker;
     private NoteHighway _noteHighway;
+    private ScoreTracker _scoreTracker;
 
     private Texture2D _pixel;
     private SpriteFont _font;
@@ -24,6 +25,18 @@ public class Game1 : Game
     private Microsoft.Xna.Framework.Media.Song _musicTrack;
 
     private KeyboardState _previousKeyboardState;
+
+    // Note keys: A, S, D, F, J, K, L
+    private static readonly (Keys key, char note)[] NoteKeys = new[]
+    {
+        (Keys.A, 'A'),
+        (Keys.S, 'S'),
+        (Keys.D, 'D'),
+        (Keys.F, 'F'),
+        (Keys.J, 'J'),
+        (Keys.K, 'K'),
+        (Keys.L, 'L')
+    };
 
     public Game1()
     {
@@ -56,7 +69,8 @@ public class Game1 : Game
 
         _conductor = new Conductor();
         _noteTracker = new NoteTracker(_song, _conductor);
-        _noteHighway = new NoteHighway(_song, _conductor, _noteTracker, _graphics.PreferredBackBufferWidth, _graphics.PreferredBackBufferHeight);
+        _scoreTracker = new ScoreTracker();
+        _noteHighway = new NoteHighway(_song, _conductor, _noteTracker, _scoreTracker, _graphics.PreferredBackBufferWidth, _graphics.PreferredBackBufferHeight);
     }
 
     protected override void Update(GameTime gameTime)
@@ -84,6 +98,7 @@ public class Game1 : Game
             MediaPlayer.Stop();
             _conductor.Stop();
             _noteTracker.Reset();
+            _scoreTracker.Reset();
             _conductor.Start(_song.BPM, _song.Offset);
             MediaPlayer.Play(_musicTrack);
             MediaPlayer.IsRepeating = false;
@@ -96,14 +111,57 @@ public class Game1 : Game
         if (_conductor.IsPlaying)
         {
             _conductor.Update(gameTime);
-            _noteTracker.Update();
+            int missedCount = _noteTracker.Update();
+            for (int i = 0; i < missedCount; i++)
+            {
+                _scoreTracker.RecordMiss();
+            }
 
-            // Input handling - Tap notes
-            if (WasKeyPressed(Keys.Space, keyboardState))
-                HandleHit(NoteType.Tap);
+            // Input handling - check all note keys
+            foreach (var (key, note) in NoteKeys)
+            {
+                bool keyDown = keyboardState.IsKeyDown(key);
+                bool keyWasDown = _previousKeyboardState.IsKeyDown(key);
 
-            // Input handling - Hold notes
-            HandleHoldInput(keyboardState);
+                if (keyDown && !keyWasDown)
+                {
+                    // Key just pressed - try Tap first, then Hold
+                    var tapResult = _noteTracker.TryHit(note);
+                    if (tapResult.Success)
+                    {
+                        var accuracy = _scoreTracker.RecordHit(tapResult.TimingDifference);
+                        _noteHighway.OnHit(true, accuracy);
+                    }
+                    else
+                    {
+                        var holdResult = _noteTracker.TryStartHold(note);
+                        if (holdResult.Success)
+                        {
+                            var accuracy = _scoreTracker.RecordHit(holdResult.TimingDifference);
+                            _noteHighway.OnHit(true, accuracy);
+                        }
+                        else
+                        {
+                            _noteHighway.OnHit(false, null);
+                        }
+                    }
+                }
+                else if (!keyDown && keyWasDown && _noteTracker.CurrentHoldKey == note)
+                {
+                    // Key released - check if this is the held note's key
+                    var releaseResult = _noteTracker.TryReleaseHold();
+                    if (releaseResult.Success)
+                    {
+                        var accuracy = _scoreTracker.RecordHit(releaseResult.TimingDifference);
+                        _noteHighway.OnHit(true, accuracy);
+                    }
+                    else
+                    {
+                        _scoreTracker.RecordMiss();
+                        _noteHighway.OnHit(false, HitAccuracy.Bad);
+                    }
+                }
+            }
         }
 
         _previousKeyboardState = keyboardState;
@@ -115,30 +173,6 @@ public class Game1 : Game
         return currentState.IsKeyDown(key) && !_previousKeyboardState.IsKeyDown(key);
     }
 
-    private void HandleHit(NoteType type)
-    {
-        bool success = _noteTracker.TryHit(type);
-        _noteHighway.OnHit(success);
-    }
-
-    private void HandleHoldInput(KeyboardState keyboardState)
-    {
-        bool holdKeyDown = keyboardState.IsKeyDown(Keys.H);
-        bool holdKeyWasDown = _previousKeyboardState.IsKeyDown(Keys.H);
-
-        if (holdKeyDown && !holdKeyWasDown)
-        {
-            // Key just pressed - try to start a hold
-            bool success = _noteTracker.TryStartHold();
-            _noteHighway.OnHit(success);
-        }
-        else if (!holdKeyDown && holdKeyWasDown && _noteTracker.IsHolding)
-        {
-            // Key released - check if release timing is correct (within ±0.2 of end beat)
-            bool success = _noteTracker.TryReleaseHold();
-            _noteHighway.OnHit(success);
-        }
-    }
 
     protected override void Draw(GameTime gameTime)
     {

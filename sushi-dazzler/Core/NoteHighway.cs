@@ -32,19 +32,26 @@ public class NoteHighway
     private static readonly Color HoldColor = Color.LimeGreen;
     private static readonly Color HighwayBackgroundColor = new Color(30, 30, 40);
     private static readonly Color HitZoneColor = Color.White;
-    private static readonly Color HitFlashColor = Color.Yellow;
-    private static readonly Color MissFlashColor = Color.Red;
+    private static readonly Color ExcellentColor = Color.Gold;
+    private static readonly Color GreatColor = Color.LimeGreen;
+    private static readonly Color GoodColor = Color.Yellow;
+    private static readonly Color BadColor = Color.Red;
 
     // Hit feedback
     private float _hitFlashTimer;
     private bool _lastHitWasSuccess;
+    private HitAccuracy? _lastAccuracy;
     private const float FlashDuration = 0.15f;
 
-    public NoteHighway(Song song, Conductor conductor, NoteTracker noteTracker, int screenWidth, int screenHeight)
+    // Scoring
+    private readonly ScoreTracker _scoreTracker;
+
+    public NoteHighway(Song song, Conductor conductor, NoteTracker noteTracker, ScoreTracker scoreTracker, int screenWidth, int screenHeight)
     {
         _song = song;
         _conductor = conductor;
         _noteTracker = noteTracker;
+        _scoreTracker = scoreTracker;
         _screenWidth = screenWidth;
         _screenHeight = screenHeight;
 
@@ -57,10 +64,11 @@ public class NoteHighway
         HitZoneX = 100;
     }
 
-    public void OnHit(bool success)
+    public void OnHit(bool success, HitAccuracy? accuracy = null)
     {
         _hitFlashTimer = FlashDuration;
         _lastHitWasSuccess = success;
+        _lastAccuracy = accuracy;
     }
 
     public void Update(GameTime gameTime)
@@ -106,8 +114,8 @@ public class NoteHighway
     public void Draw(SpriteBatch spriteBatch, Texture2D pixel, SpriteFont font)
     {
         DrawHighwayBackground(spriteBatch, pixel);
-        DrawHitZone(spriteBatch, pixel);
-        DrawNotes(spriteBatch, pixel);
+        DrawHitZone(spriteBatch, pixel, font);
+        DrawNotes(spriteBatch, pixel, font);
         DrawHud(spriteBatch, pixel, font);
         DrawControlsHint(spriteBatch, pixel, font);
     }
@@ -137,13 +145,17 @@ public class NoteHighway
         }
     }
 
-    private void DrawHitZone(SpriteBatch spriteBatch, Texture2D pixel)
+    private void DrawHitZone(SpriteBatch spriteBatch, Texture2D pixel, SpriteFont font)
     {
-        // Determine hit zone color based on flash state
+        // Determine hit zone color based on flash state and accuracy
         Color zoneColor = HitZoneColor;
-        if (_hitFlashTimer > 0)
+        if (_hitFlashTimer > 0 && _lastAccuracy.HasValue)
         {
-            zoneColor = _lastHitWasSuccess ? HitFlashColor : MissFlashColor;
+            zoneColor = GetAccuracyColor(_lastAccuracy.Value);
+        }
+        else if (_hitFlashTimer > 0 && !_lastHitWasSuccess)
+        {
+            zoneColor = BadColor;
         }
 
         // Draw the hit zone line
@@ -157,9 +169,43 @@ public class NoteHighway
         spriteBatch.Draw(pixel,
             new Rectangle(HitZoneX - glowWidth, HighwayBounds.Y, glowWidth * 2, HighwayBounds.Height),
             glowColor);
+
+        // Draw accuracy text feedback
+        if (_hitFlashTimer > 0 && _lastAccuracy.HasValue)
+        {
+            string accuracyText = GetAccuracyText(_lastAccuracy.Value);
+            Color textColor = GetAccuracyColor(_lastAccuracy.Value);
+            Vector2 textSize = font.MeasureString(accuracyText);
+            Vector2 textPos = new Vector2(HitZoneX - textSize.X / 2, HighwayBounds.Y + 20);
+            spriteBatch.DrawString(font, accuracyText, textPos, textColor);
+        }
     }
 
-    private void DrawNotes(SpriteBatch spriteBatch, Texture2D pixel)
+    private static Color GetAccuracyColor(HitAccuracy accuracy)
+    {
+        return accuracy switch
+        {
+            HitAccuracy.Excellent => ExcellentColor,
+            HitAccuracy.Great => GreatColor,
+            HitAccuracy.Good => GoodColor,
+            HitAccuracy.Bad => BadColor,
+            _ => Color.White
+        };
+    }
+
+    private static string GetAccuracyText(HitAccuracy accuracy)
+    {
+        return accuracy switch
+        {
+            HitAccuracy.Excellent => "EXCELLENT!",
+            HitAccuracy.Great => "GREAT!",
+            HitAccuracy.Good => "GOOD",
+            HitAccuracy.Bad => "BAD",
+            _ => ""
+        };
+    }
+
+    private void DrawNotes(SpriteBatch spriteBatch, Texture2D pixel, SpriteFont font)
     {
         int noteY = GetNoteY();
         float pixelsPerBeat = (_screenWidth - HitZoneX - 50) / LookAheadBeats;
@@ -180,7 +226,7 @@ public class NoteHighway
                     {
                         noteColor = new Color((byte)(noteColor.R / 3), (byte)(noteColor.G / 3), (byte)(noteColor.B / 3), noteColor.A);
                     }
-                    DrawTapNote(spriteBatch, pixel, noteX, noteY, noteColor);
+                    DrawTapNote(spriteBatch, pixel, font, noteX, noteY, note.Key, noteColor);
                     break;
 
                 case NoteType.Hold:
@@ -196,21 +242,27 @@ public class NoteHighway
                     {
                         noteColor = new Color((byte)(noteColor.R / 3), (byte)(noteColor.G / 3), (byte)(noteColor.B / 3), noteColor.A);
                     }
-                    DrawHoldNote(spriteBatch, pixel, noteX, noteY, note.Duration, noteColor, pixelsPerBeat);
+                    DrawHoldNote(spriteBatch, pixel, font, noteX, noteY, note.Key, note.Duration, noteColor, pixelsPerBeat);
                     break;
             }
         }
     }
 
-    private void DrawTapNote(SpriteBatch spriteBatch, Texture2D pixel, int x, int y, Color color)
+    private void DrawTapNote(SpriteBatch spriteBatch, Texture2D pixel, SpriteFont font, int x, int y, char key, Color color)
     {
         // Simple square for tap notes
         spriteBatch.Draw(pixel,
             new Rectangle(x - NoteSize / 2, y, NoteSize, NoteSize),
             color);
+
+        // Draw key letter centered on the note
+        string keyStr = key.ToString();
+        Vector2 textSize = font.MeasureString(keyStr);
+        Vector2 textPos = new Vector2(x - textSize.X / 2, y + (NoteSize - textSize.Y) / 2);
+        spriteBatch.DrawString(font, keyStr, textPos, Color.Black);
     }
 
-    private void DrawHoldNote(SpriteBatch spriteBatch, Texture2D pixel, int x, int y, float duration, Color color, float pixelsPerBeat)
+    private void DrawHoldNote(SpriteBatch spriteBatch, Texture2D pixel, SpriteFont font, int x, int y, char key, float duration, Color color, float pixelsPerBeat)
     {
         int holdWidth = Math.Max(NoteSize, (int)(duration * pixelsPerBeat));
         int barHeight = NoteSize / 2;
@@ -241,6 +293,12 @@ public class NoteHighway
             spriteBatch.Draw(pixel,
                 new Rectangle(x - NoteSize / 2, y, 4, NoteSize),
                 color);
+
+            // Draw key letter at the start of the hold
+            string keyStr = key.ToString();
+            Vector2 textSize = font.MeasureString(keyStr);
+            Vector2 textPos = new Vector2(x - textSize.X / 2, y + (NoteSize - textSize.Y) / 2);
+            spriteBatch.DrawString(font, keyStr, textPos, Color.Black);
         }
 
         // Draw end cap
@@ -254,16 +312,14 @@ public class NoteHighway
         // Background for HUD
         spriteBatch.Draw(pixel, new Rectangle(0, 0, _screenWidth, HudHeight), new Color(20, 20, 30));
 
-        // Draw stats
-        string beatText = $"Beat: {_conductor.CurrentBeat:F1}";
-        string hitsText = $"Hits: {_noteTracker.HitCount}";
-        string missText = $"Misses: {_noteTracker.MissCount}";
-
+        // Draw score
+        string scoreText = $"Score: {_scoreTracker.TotalScore}";
         int padding = 20;
+        spriteBatch.DrawString(font, scoreText, new Vector2(padding, 10), Color.White);
 
-        spriteBatch.DrawString(font, beatText, new Vector2(padding, 10), Color.White);
-        spriteBatch.DrawString(font, hitsText, new Vector2(padding + 150, 10), HitFlashColor);
-        spriteBatch.DrawString(font, missText, new Vector2(padding + 280, 10), MissFlashColor);
+        // Draw accuracy breakdown
+        string accuracyText = $"E:{_scoreTracker.ExcellentCount} G:{_scoreTracker.GreatCount} OK:{_scoreTracker.GoodCount} B:{_scoreTracker.BadCount}";
+        spriteBatch.DrawString(font, accuracyText, new Vector2(padding + 150, 10), Color.LightGray);
 
         // Song title on the right
         string titleText = $"{_song.Title} - {_song.Artist}";
@@ -279,7 +335,7 @@ public class NoteHighway
         spriteBatch.Draw(pixel, new Rectangle(0, y, _screenWidth, ControlsHintHeight), new Color(20, 20, 30));
 
         // Controls text
-        string controls = "[Space = Tap]  [H = Hold]  [Enter = Start]  [R = Restart]  [Esc = Quit]";
+        string controls = "[A S D F J K L = Notes]  [Enter = Start]  [R = Restart]  [Esc = Quit]";
         Vector2 controlsSize = font.MeasureString(controls);
         float controlsX = (_screenWidth - controlsSize.X) / 2;
 
