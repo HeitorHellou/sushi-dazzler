@@ -25,3 +25,13 @@
 /processor:SongProcessor
 /build:Songs/yokohama/yokohama.mp3
 
+#begin SFX/hit.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/build:SFX/hit.wav
+
+#begin SFX/miss.wav
+/importer:WavImporter
+/processor:SoundEffectProcessor
+/build:SFX/miss.wav
+
