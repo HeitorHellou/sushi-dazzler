@@ -20,10 +20,15 @@
 /processorParam:TextureFormat=Compressed
 /build:DefaultFont.spritefont
 
-#begin Songs/yokohama/yokohama.mp3
+#begin Songs/Yokohama/yokohama.mp3
 /importer:Mp3Importer
 /processor:SongProcessor
-/build:Songs/yokohama/yokohama.mp3
+/build:Songs/Yokohama/yokohama.mp3
+
+#begin Songs/Osaka/yokohama.mp3
+/importer:Mp3Importer
+/processor:SongProcessor
+/build:Songs/Osaka/yokohama.mp3
 
 #begin SFX/hit.wav
 /importer:WavImporter

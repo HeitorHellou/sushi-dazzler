@@ -7,7 +7,6 @@ namespace SushiDazzler.Core.Scenes;
 public class MenuScene : IScene
 {
     private readonly GameContext _ctx;
-    private const string DefaultChart = "Content/Songs/yokohama/easy.json";
 
     public MenuScene(GameContext ctx)
     {
@@ -27,7 +26,7 @@ public class MenuScene : IScene
 
         if (_ctx.WasKeyPressed(Keys.Enter))
         {
-            _ctx.SceneManager.ChangeScene(new PlayingScene(_ctx, DefaultChart));
+            _ctx.SceneManager.ChangeScene(new BarSelectScene(_ctx));
         }
     }
 

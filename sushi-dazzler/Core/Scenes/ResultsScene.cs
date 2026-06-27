@@ -10,13 +10,15 @@ public class ResultsScene : IScene
     private readonly Song _song;
     private readonly ScoreTracker _score;
     private readonly string _chartPath;
+    private readonly string _audioAssetPath;
 
-    public ResultsScene(GameContext ctx, Song song, ScoreTracker score, string chartPath)
+    public ResultsScene(GameContext ctx, Song song, ScoreTracker score, string chartPath, string audioAssetPath)
     {
         _ctx = ctx;
         _song = song;
         _score = score;
         _chartPath = chartPath;
+        _audioAssetPath = audioAssetPath;
     }
 
     public void Enter() { }
@@ -26,7 +28,7 @@ public class ResultsScene : IScene
     {
         if (_ctx.WasKeyPressed(Keys.R))
         {
-            _ctx.SceneManager.ChangeScene(new PlayingScene(_ctx, _chartPath));
+            _ctx.SceneManager.ChangeScene(new PlayingScene(_ctx, _chartPath, _audioAssetPath));
             return;
         }
 
@@ -41,7 +43,7 @@ public class ResultsScene : IScene
         float cx = _ctx.ScreenWidth / 2f;
         float y = 80f;
 
-        DrawCentered(spriteBatch, $"{_song.Title} — {_song.Artist}", cx, y, Color.Gray); y += 40;
+        DrawCentered(spriteBatch, $"{_song.Title} - {_song.Artist}", cx, y, Color.Gray); y += 40;
         DrawCentered(spriteBatch, "RESULTS", cx, y, Color.White); y += 50;
 
         int stars = _score.GetStarRating();

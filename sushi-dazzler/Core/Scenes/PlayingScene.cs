@@ -11,6 +11,7 @@ public class PlayingScene : IScene
 {
     private readonly GameContext _ctx;
     private readonly string _chartPath;
+    private readonly string _audioAssetPath;
 
     private Conductor _conductor;
     private Song _song;
@@ -33,18 +34,18 @@ public class PlayingScene : IScene
         (Keys.L, 'L')
     };
 
-    public PlayingScene(GameContext ctx, string chartPath)
+    public PlayingScene(GameContext ctx, string chartPath, string audioAssetPath)
     {
         _ctx = ctx;
         _chartPath = chartPath;
+        _audioAssetPath = audioAssetPath;
     }
 
     public void Enter()
     {
         _song = SongLoader.Load(_chartPath);
 
-        string audioAssetPath = "Songs/yokohama/" + Path.GetFileNameWithoutExtension(_song.AudioFile);
-        _musicTrack = _ctx.Content.Load<Microsoft.Xna.Framework.Media.Song>(audioAssetPath);
+        _musicTrack = _ctx.Content.Load<Microsoft.Xna.Framework.Media.Song>(_audioAssetPath);
 
         _conductor = new Conductor();
         _noteTracker = new NoteTracker(_song, _conductor);
@@ -79,7 +80,7 @@ public class PlayingScene : IScene
 
         if (_ctx.WasKeyPressed(Keys.R))
         {
-            _ctx.SceneManager.ChangeScene(new PlayingScene(_ctx, _chartPath));
+            _ctx.SceneManager.ChangeScene(new PlayingScene(_ctx, _chartPath, _audioAssetPath));
             return;
         }
 
@@ -102,7 +103,7 @@ public class PlayingScene : IScene
         if (_conductor.CurrentBeat >= _songEndBeat)
         {
             _finished = true;
-            _ctx.SceneManager.ChangeScene(new ResultsScene(_ctx, _song, _scoreTracker, _chartPath));
+            _ctx.SceneManager.ChangeScene(new ResultsScene(_ctx, _song, _scoreTracker, _chartPath, _audioAssetPath));
         }
     }
 
