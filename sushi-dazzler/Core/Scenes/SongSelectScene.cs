@@ -42,7 +42,7 @@ public class SongSelectScene : IScene
         if (_ctx.WasKeyPressed(Keys.Enter))
         {
             var song = _bar.Songs[_selected];
-            _ctx.SceneManager.ChangeScene(new PlayingScene(_ctx, song.ChartPath, song.AudioAssetPath));
+            _ctx.SceneManager.ChangeScene(new PlayingScene(_ctx, song));
         }
     }
 
@@ -63,9 +63,11 @@ public class SongSelectScene : IScene
             for (int i = 0; i < _bar.Songs.Count; i++)
             {
                 var song = _bar.Songs[i];
-                var label = i == _selected
-                    ? $"> {song.Title} - {song.Artist}"
-                    : $"  {song.Title} - {song.Artist}";
+                var record = _ctx.Progress.Data.GetChart(song.Key);
+                var best = record != null
+                    ? $"   [{new string('*', record.BestStars)}{new string('-', 5 - record.BestStars)}  {record.BestScore}]"
+                    : "";
+                var label = (i == _selected ? "> " : "  ") + $"{song.Title} - {song.Artist}{best}";
                 var color = i == _selected ? Color.Yellow : Color.LightGray;
                 DrawCentered(spriteBatch, label, cx, y, color);
                 y += 32;

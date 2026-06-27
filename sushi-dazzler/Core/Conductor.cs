@@ -23,10 +23,19 @@ public class Conductor
 
     public void Update(GameTime gameTime)
     {
+        Advance(gameTime.ElapsedGameTime.TotalSeconds);
+    }
+
+    /// <summary>
+    /// Advances the song clock by a raw number of seconds. Frame-loop code uses
+    /// <see cref="Update"/>; tests drive this directly without a GameTime.
+    /// </summary>
+    public void Advance(double seconds)
+    {
         if (!IsPlaying)
             return;
 
-        _songPosition += (float)gameTime.ElapsedGameTime.TotalSeconds;
+        _songPosition += (float)seconds;
     }
 
     public void Stop()

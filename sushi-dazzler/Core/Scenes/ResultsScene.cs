@@ -7,28 +7,33 @@ namespace SushiDazzler.Core.Scenes;
 public class ResultsScene : IScene
 {
     private readonly GameContext _ctx;
-    private readonly Song _song;
+    private readonly SongEntry _entry;
     private readonly ScoreTracker _score;
-    private readonly string _chartPath;
-    private readonly string _audioAssetPath;
 
-    public ResultsScene(GameContext ctx, Song song, ScoreTracker score, string chartPath, string audioAssetPath)
+    private bool _isNewBest;
+    private ChartRecord? _record;
+
+    public ResultsScene(GameContext ctx, SongEntry entry, ScoreTracker score)
     {
         _ctx = ctx;
-        _song = song;
+        _entry = entry;
         _score = score;
-        _chartPath = chartPath;
-        _audioAssetPath = audioAssetPath;
     }
 
-    public void Enter() { }
+    public void Enter()
+    {
+        // Record this run and remember whether it beat the stored best.
+        _isNewBest = _ctx.Progress.SubmitResult(_entry.Key, _score.TotalScore, _score.GetStarRating());
+        _record = _ctx.Progress.Data.GetChart(_entry.Key);
+    }
+
     public void Exit() { }
 
     public void Update(GameTime gameTime)
     {
         if (_ctx.WasKeyPressed(Keys.R))
         {
-            _ctx.SceneManager.ChangeScene(new PlayingScene(_ctx, _chartPath, _audioAssetPath));
+            _ctx.SceneManager.ChangeScene(new PlayingScene(_ctx, _entry));
             return;
         }
 
@@ -43,7 +48,7 @@ public class ResultsScene : IScene
         float cx = _ctx.ScreenWidth / 2f;
         float y = 80f;
 
-        DrawCentered(spriteBatch, $"{_song.Title} - {_song.Artist}", cx, y, Color.Gray); y += 40;
+        DrawCentered(spriteBatch, $"{_entry.Title} - {_entry.Artist}", cx, y, Color.Gray); y += 40;
         DrawCentered(spriteBatch, "RESULTS", cx, y, Color.White); y += 50;
 
         int stars = _score.GetStarRating();
@@ -53,7 +58,20 @@ public class ResultsScene : IScene
         DrawCentered(spriteBatch, $"Excellent: {_score.ExcellentCount}", cx, y, Color.Gold); y += 24;
         DrawCentered(spriteBatch, $"Great:     {_score.GreatCount}", cx, y, Color.LimeGreen); y += 24;
         DrawCentered(spriteBatch, $"Good:      {_score.GoodCount}", cx, y, Color.Yellow); y += 24;
-        DrawCentered(spriteBatch, $"Miss/Bad:  {_score.BadCount}", cx, y, Color.Red); y += 40;
+        DrawCentered(spriteBatch, $"Miss/Bad:  {_score.BadCount}", cx, y, Color.Red); y += 24;
+        DrawCentered(spriteBatch, $"Ghost taps: {_score.GhostTapCount}", cx, y, Color.OrangeRed); y += 34;
+
+        if (_record != null)
+        {
+            DrawCentered(spriteBatch, $"Best: {_record.BestScore}  ({new string('*', _record.BestStars)})", cx, y, Color.Cyan);
+            y += 28;
+        }
+        if (_isNewBest)
+        {
+            DrawCentered(spriteBatch, "NEW BEST!", cx, y, Color.Gold);
+            y += 28;
+        }
+        y += 12;
 
         DrawCentered(spriteBatch, "[R] Retry    [Enter/Esc] Menu", cx, y, Color.Gray);
     }

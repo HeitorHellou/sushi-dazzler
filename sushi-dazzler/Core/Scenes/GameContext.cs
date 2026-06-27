@@ -15,6 +15,7 @@ public class GameContext
     public int ScreenWidth { get; set; }
     public int ScreenHeight { get; set; }
     public SceneManager SceneManager { get; set; }
+    public SaveManager Progress { get; set; }
     public SoundEffect HitSound { get; set; }
     public SoundEffect MissSound { get; set; }
     public Action Exit { get; set; }
@@ -24,4 +25,7 @@ public class GameContext
 
     public bool WasKeyPressed(Keys key) =>
         Keyboard.IsKeyDown(key) && !PreviousKeyboard.IsKeyDown(key);
+
+    public bool WasKeyReleased(Keys key) =>
+        !Keyboard.IsKeyDown(key) && PreviousKeyboard.IsKeyDown(key);
 }

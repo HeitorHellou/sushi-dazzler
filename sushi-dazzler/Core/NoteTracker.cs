@@ -24,7 +24,9 @@ public class NoteTracker
     private Note? _currentHold;
     private float _holdStartTimingDiff; // Store timing diff from when hold started
 
-    public float HitWindow { get; set; } = 0.5f; // ±0.5 beats (matches ScoreTracker.GoodWindow)
+    // Half-width (in beats) of the hittable window. PlayingScene sets this from
+    // ScoreTracker.GoodWindow so "hittable" and "lowest scoring tier" stay in lockstep.
+    public float HitWindow { get; set; } = 0.5f;
     public int HitCount { get; private set; }
     public int MissCount { get; private set; }
     public IReadOnlyCollection<Note> ActiveNotes => _activeNotes;

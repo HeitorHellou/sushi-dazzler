@@ -49,6 +49,9 @@ public class Game1 : Game
         try { _missSound = Content.Load<SoundEffect>("SFX/miss"); }
         catch (Exception) { Console.WriteLine("Warning: Could not load SFX/miss.wav - miss sounds disabled"); }
 
+        var saveManager = SushiDazzler.Core.SaveManager.Default();
+        saveManager.Load();
+
         _sceneManager = new SceneManager();
         _ctx = new GameContext
         {
@@ -59,6 +62,7 @@ public class Game1 : Game
             ScreenWidth = _graphics.PreferredBackBufferWidth,
             ScreenHeight = _graphics.PreferredBackBufferHeight,
             SceneManager = _sceneManager,
+            Progress = saveManager,
             HitSound = _hitSound,
             MissSound = _missSound,
             Exit = Exit

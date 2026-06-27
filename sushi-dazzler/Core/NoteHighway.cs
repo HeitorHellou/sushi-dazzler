@@ -10,7 +10,6 @@ public class NoteHighway
 {
     private readonly Song _song;
     private readonly Conductor _conductor;
-    private readonly NoteTracker _noteTracker;
 
     // Layout
     private readonly int _screenWidth;
@@ -46,11 +45,10 @@ public class NoteHighway
     // Scoring
     private readonly ScoreTracker _scoreTracker;
 
-    public NoteHighway(Song song, Conductor conductor, NoteTracker noteTracker, ScoreTracker scoreTracker, int screenWidth, int screenHeight)
+    public NoteHighway(Song song, Conductor conductor, ScoreTracker scoreTracker, int screenWidth, int screenHeight)
     {
         _song = song;
         _conductor = conductor;
-        _noteTracker = noteTracker;
         _scoreTracker = scoreTracker;
         _screenWidth = screenWidth;
         _screenHeight = screenHeight;
@@ -335,7 +333,7 @@ public class NoteHighway
         spriteBatch.Draw(pixel, new Rectangle(0, y, _screenWidth, ControlsHintHeight), new Color(20, 20, 30));
 
         // Controls text
-        string controls = "[A S D F J K L = Notes]  [Enter = Start]  [R = Restart]  [Esc = Quit]";
+        string controls = "[A S D F J K L = Notes]  [Esc = Pause]  [R = Restart]";
         Vector2 controlsSize = font.MeasureString(controls);
         float controlsX = (_screenWidth - controlsSize.X) / 2;
 

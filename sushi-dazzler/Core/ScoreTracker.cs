@@ -21,12 +21,17 @@ public class ScoreTracker
     public int GoodPoints { get; set; } = 2;
     public int BadPoints { get; set; } = -10;
 
+    // Penalty for a press that matched no note (a "ghost tap"). Small so mashing
+    // isn't free, but it is NOT a missed note: it doesn't touch the note counts.
+    public int GhostTapPenalty { get; set; } = 2;
+
     // Stats
     public int TotalScore { get; private set; }
     public int ExcellentCount { get; private set; }
     public int GreatCount { get; private set; }
     public int GoodCount { get; private set; }
     public int BadCount { get; private set; }
+    public int GhostTapCount { get; private set; }
     public int TotalNotes { get; private set; }
 
     public int MaxPossibleScore => TotalNotes * ExcellentPoints;
@@ -74,6 +79,16 @@ public class ScoreTracker
         TotalNotes++;
     }
 
+    /// <summary>
+    /// A key press that hit nothing. Applies a small penalty without counting as a
+    /// chart note, so the star denominator and accuracy breakdown stay accurate.
+    /// </summary>
+    public void RecordGhostTap()
+    {
+        TotalScore -= GhostTapPenalty;
+        GhostTapCount++;
+    }
+
     public int GetStarRating()
     {
         if (TotalNotes == 0)
@@ -99,6 +114,7 @@ public class ScoreTracker
         GreatCount = 0;
         GoodCount = 0;
         BadCount = 0;
+        GhostTapCount = 0;
         TotalNotes = 0;
     }
 }
